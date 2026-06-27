@@ -1,0 +1,72 @@
+#ifndef ARDUINO_H
+#define ARDUINO_H
+
+#define WIN32_LEAN_AND_MEAN
+#define _WINSOCKAPI_
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <string>
+#include <vector>
+#include <thread>
+#include <atomic>
+#include <mutex>
+#include <cstdint>
+
+#include "serial/serial.h"
+
+enum class ArduinoProtocol
+{
+    Legacy,
+    Teensy41
+};
+
+class Arduino
+{
+public:
+    Arduino(const std::string& port, unsigned int baud_rate, ArduinoProtocol protocol = ArduinoProtocol::Legacy);
+    ~Arduino();
+
+    bool isOpen() const;
+
+    void write(const std::string& data);
+    std::string read();
+
+    void click();
+    void press();
+    void release();
+    void move(int x, int y);
+
+    bool aiming_active;
+    bool shooting_active;
+    bool zooming_active;
+
+private:
+    void sendCommand(const std::string& command);
+    void sendButtons();
+    std::vector<int> splitValue(int value);
+
+    void startTimer();
+    void startListening();
+    void processIncomingLine(const std::string& line);
+
+    void timerThreadFunc();
+    void listeningThreadFunc();
+    std::mutex write_mutex_;
+
+private:
+    serial::Serial serial_;
+    ArduinoProtocol protocol_;
+    uint8_t button_mask_ = 0;
+    std::atomic<bool> is_open_;
+
+    std::thread timer_thread_;
+    std::atomic<bool> timer_running_;
+
+    std::thread listening_thread_;
+    std::atomic<bool> listening_;
+
+};
+
+#endif // ARDUINO_H
